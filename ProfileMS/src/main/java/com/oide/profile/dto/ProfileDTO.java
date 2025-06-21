@@ -1,14 +1,11 @@
-package com.oide.profile.entity;
+package com.oide.profile.dto;
 
-import jakarta.persistence.Entity;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Profile {
-
+public class ProfileDTO {
 }
