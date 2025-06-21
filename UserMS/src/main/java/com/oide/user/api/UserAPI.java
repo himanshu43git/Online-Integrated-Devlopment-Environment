@@ -4,6 +4,7 @@ import com.oide.user.dto.ResponseDTO;
 import com.oide.user.dto.UserDTO;
 import com.oide.user.services.UserService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,14 +26,13 @@ public class UserAPI {
     @PostMapping("/signup")
     public ResponseEntity<ResponseDTO> registerUser(@RequestBody @Valid UserDTO userDTO){
 
-        ResponseDTO response = new ResponseDTO();
         try {
             userService.createUser(userDTO);
-            response.setMessage("User registered successfully");
-            return ResponseEntity.ok(response);
+            ResponseDTO response = new ResponseDTO("User created successfully", userDTO);
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (Exception e) {
-            response.setMessage("Error registering user: " + e.getMessage());
-            return ResponseEntity.status(500).body(response);
+            ResponseDTO response = new ResponseDTO("Error creating user: " + e.getMessage(), null);
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
     }

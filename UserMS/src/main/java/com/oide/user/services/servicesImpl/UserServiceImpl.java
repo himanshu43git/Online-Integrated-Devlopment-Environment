@@ -3,7 +3,8 @@ package com.oide.user.services.servicesImpl;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.oide.user.dto.UserDTO;
@@ -19,11 +20,12 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
-    private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder){
+//     @Autowired
+//     private PasswordEncoder passwordEncoder;
+
+    public UserServiceImpl(UserRepository userRepository){
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -95,11 +97,11 @@ public class UserServiceImpl implements UserService {
             user.setEmail(userDTO.getEmail());
         }
 
-        // Update password if provided (non-blank)
-        if (userDTO.getPassword() != null && !userDTO.getPassword().isBlank()) {
-            String encoded = passwordEncoder.encode(userDTO.getPassword());
-            user.setPassword(encoded);
-        }
+//         Update password if provided (non-blank)
+//         if (userDTO.getPassword() != null && !userDTO.getPassword().isBlank()) {
+//             String encoded = passwordEncoder.encode(userDTO.getPassword());
+//             user.setPassword(encoded);
+//         }
 
         // Update profileId if provided
         if (userDTO.getProfileId() != null) {
