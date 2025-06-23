@@ -25,39 +25,39 @@ public class ProfileDTO {
      * For create: may be null.
      * For update: set from path or caller, must be positive if provided.
      */
-    @Positive(message = "userId must be a positive number")
+//    @Positive(message = "userId must be a positive number")
     private Long userId;
 
-    @Size(max = 100, message = "Name cannot exceed 100 characters")
+//    @Size(max = 100, message = "Name cannot exceed 100 characters")
     private String name;
 
-    @NotBlank(message = "Username is required")
-    @Size(max = 50, message = "Username cannot exceed 50 characters")
-    private String username;
+//    @NotBlank(message = "Username is required")
+//    @Size(max = 50, message = "Username cannot exceed 50 characters")
+    private String username; 
 
-    @NotBlank(message = "Email is mandatory")
-    @Email(message = "Email must be valid")
-    @Size(max = 100, message = "Email cannot exceed 100 characters")
+//    @NotBlank(message = "Email is mandatory")
+//    @Email(message = "Email must be valid")
+//    @Size(max = 100, message = "Email cannot exceed 100 characters")
     private String email;
 
-    @NotBlank(message = "Password field cannot be empty")
+//    @NotBlank(message = "Password field cannot be empty")
     @Pattern(
             regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=]).{8,15}$",
             message = "Password should contain at least 1 digit, 1 lowercase, 1 uppercase, 1 special character and be 8-15 characters long"
     )
     private String password;
 
-    @Size(max = 500, message = "Bio cannot exceed 500 characters")
+//    @Size(max = 500, message = "Bio cannot exceed 500 characters")
     private String bio;
 
-    @Size(max = 255, message = "Avatar URL cannot exceed 255 characters")
-    @URL(message = "avatarUrl must be a valid URL")
+//    @Size(max = 255, message = "Avatar URL cannot exceed 255 characters")
+//    @URL(message = "avatarUrl must be a valid URL")
     private String avatarUrl;
 
-    @Size(max = 100, message = "Location cannot exceed 100 characters")
+//    @Size(max = 100, message = "Location cannot exceed 100 characters")
     private String location;
 
-    @Size(max = 255, message = "Personal URL cannot exceed 255 characters")
+//    @Size(max = 255, message = "Personal URL cannot exceed 255 characters")
     @URL(message = "personalUrl must be a valid URL")
     private String personalUrl;
 
@@ -91,17 +91,17 @@ public class ProfileDTO {
      * Convert a Profile entity into this DTO.
      * Password field is set to null to avoid exposing it.
      */
-    public static ProfileDTO fromEntity(Profile entity) {
-        ProfileDTO dto = new ProfileDTO();
-        dto.setUserId(entity.getUserId());
-        dto.setName(entity.getName());
-        dto.setUsername(entity.getUsername());
-        dto.setEmail(entity.getEmail());
-        dto.setPassword(null); // never expose stored password
-        dto.setBio(entity.getBio());
-        dto.setAvatarUrl(entity.getAvatarUrl());
-        dto.setLocation(entity.getLocation());
-        dto.setPersonalUrl(entity.getPersonalUrl());
-        return dto;
-    }
+    // public static ProfileDTO fromEntity(Profile entity) {
+    //     ProfileDTO dto = new ProfileDTO();
+    //     dto.setUserId(entity.getUserId());
+    //     dto.setName(entity.getName());
+    //     dto.setUsername(entity.getUsername());
+    //     dto.setEmail(entity.getEmail());
+    //     dto.setPassword(null); // never expose stored password
+    //     dto.setBio(entity.getBio());
+    //     dto.setAvatarUrl(entity.getAvatarUrl());
+    //     dto.setLocation(entity.getLocation());
+    //     dto.setPersonalUrl(entity.getPersonalUrl());
+    //     return dto;
+    // }
 }

@@ -3,6 +3,7 @@ package com.oide.user.services.servicesImpl;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.oide.user.services.ApiService;
 import org.springframework.beans.factory.annotation.Autowired;
 //import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,13 +20,16 @@ import jakarta.transaction.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final ApiService apiService;
 
 
 //     @Autowired
 //     private PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository){
+    public UserServiceImpl(UserRepository userRepository, ApiService apiService){
+
         this.userRepository = userRepository;
+        this.apiService = apiService;
     }
 
     @Override
@@ -44,7 +48,8 @@ public class UserServiceImpl implements UserService {
         user.setUsername(userDTO.getUsername());
         user.setEmail(userDTO.getEmail());
         user.setPassword(userDTO.getPassword());
-        user.setProfileId(userDTO.getProfileId());  
+        Long profileId = apiService.addProfile(userDTO).block();
+        user.setProfileId(profileId);
         
         userRepository.save(user);
     }

@@ -17,7 +17,7 @@ public interface ProfileService {
      * @throws IllegalArgumentException if profileDTO.userId is null or not positive, or if a profile already exists.
      * @throws RuntimeException or custom exceptions (e.g., UserNotFoundException) if the referenced user does not exist.
      */
-    ProfileDTO createProfile(ProfileDTO profileDTO);
+    Long createProfile(ProfileDTO profileDTO);
 
     /**
      * Retrieve an existing profile by userId.
