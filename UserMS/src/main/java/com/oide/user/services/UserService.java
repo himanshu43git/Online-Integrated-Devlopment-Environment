@@ -8,7 +8,7 @@ public interface UserService {
     
     public void createUser(UserDTO userDTO) throws CustomException;
 
-    public UserDTO loginUSer(UserDTO userDTO) throws CustomException;
+    public UserDTO loginUser(UserDTO userDTO) throws CustomException;
 
     public User getUserById(Long userId);
 

@@ -4,8 +4,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.oide.user.services.ApiService;
-import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.oide.user.dto.UserDTO;
@@ -19,146 +18,120 @@ import jakarta.transaction.Transactional;
 @Service
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
-    private final ApiService apiService;
+    private final UserRepository    userRepository;
+    private final ApiService        apiService;
+    private final PasswordEncoder   passwordEncoder;
 
-
-//     @Autowired
-//     private PasswordEncoder passwordEncoder;
-
-    public UserServiceImpl(UserRepository userRepository, ApiService apiService){
-
-        this.userRepository = userRepository;
-        this.apiService = apiService;
+    public UserServiceImpl(UserRepository userRepository,
+                           ApiService apiService,
+                           PasswordEncoder passwordEncoder) {
+        this.userRepository   = userRepository;
+        this.apiService       = apiService;
+        this.passwordEncoder  = passwordEncoder;
     }
 
     @Override
     public void createUser(UserDTO userDTO) throws CustomException {
-        Optional<User> existingUser = userRepository.findByEmail(userDTO.getEmail());
-
-        if(existingUser.isPresent()){
+        Optional<User> existing = userRepository.findByEmail(userDTO.getEmail());
+        if (existing.isPresent()) {
             throw new CustomException("USER_ALREADY_EXISTS");
         }
 
         Long userId = UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE;
-
         User user = new User();
         user.setUserId(userId);
         user.setName(userDTO.getName());
         user.setUsername(userDTO.getUsername());
         user.setEmail(userDTO.getEmail());
-        user.setPassword(userDTO.getPassword());
+        // 🔐 encode password before saving
+        user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         Long profileId = apiService.addProfile(userDTO).block();
         user.setProfileId(profileId);
-        
+
         userRepository.save(user);
     }
 
     @Override
-    public UserDTO loginUSer(UserDTO userDTO) throws CustomException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'loginUSer'");
+    public UserDTO loginUser(UserDTO userDTO) throws CustomException {
+        // 1) find user by email
+        User user = userRepository.findByEmail(userDTO.getEmail())
+                .orElseThrow(() -> new CustomException("INVALID_CREDENTIALS"));
+
+        // 2) check password
+        if (!passwordEncoder.matches(userDTO.getPassword(), user.getPassword())) {
+            throw new CustomException("INVALID_CREDENTIALS");
+        }
+
+        // 3) return basic info as DTO (you may omit the password in DTO)
+        UserDTO dto = user.toDTO();
+        dto.setPassword(null);  // never expose the hash
+        return dto;
     }
 
     @Override
     public User getUserById(Long userId) {
-        Optional<User> user = userRepository.findById(userId);
-        if(user.isPresent()){
-            return user.get();
-        } else {
-            throw new CustomException("USER_NOT_FOUND");
-        }
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("USER_NOT_FOUND"));
     }
 
     @Override
     @Transactional
     public void updateUser(String email, UserDTO userDTO) {
-        // Fetch existing user by current email
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException("User not found with email: " + email));
+                .orElseThrow(() -> new CustomException("USER_NOT_FOUND"));
 
-        // Update name
+        // name
         if (userDTO.getName() != null) {
             user.setName(userDTO.getName());
         }
 
-        // Update username if provided and changed
+        // username
         if (userDTO.getUsername() != null && !userDTO.getUsername().equals(user.getUsername())) {
-            // Check uniqueness: if another user has this username, and it's not the same user
-            Optional<User> byUsername = userRepository.findByUsername(userDTO.getUsername());
-            if (byUsername.isPresent() && !byUsername.get().getUserId().equals(user.getUserId())) {
-                throw new IllegalArgumentException("Username already in use: " + userDTO.getUsername());
-            }
+            userRepository.findByUsername(userDTO.getUsername())
+                    .filter(u -> !u.getUserId().equals(user.getUserId()))
+                    .ifPresent(u -> { throw new CustomException("USERNAME_ALREADY_IN_USE"); });
             user.setUsername(userDTO.getUsername());
         }
 
-        // Update email if provided and changed
+        // email
         if (userDTO.getEmail() != null && !userDTO.getEmail().equals(user.getEmail())) {
-            // Check uniqueness: if another user has this email
-            Optional<User> byEmail = userRepository.findByEmail(userDTO.getEmail());
-            if (byEmail.isPresent() && !byEmail.get().getUserId().equals(user.getUserId())) {
-                throw new IllegalArgumentException("Email already in use: " + userDTO.getEmail());
-            }
+            userRepository.findByEmail(userDTO.getEmail())
+                    .filter(u -> !u.getUserId().equals(user.getUserId()))
+                    .ifPresent(u -> { throw new CustomException("EMAIL_ALREADY_IN_USE"); });
             user.setEmail(userDTO.getEmail());
         }
 
-//         Update password if provided (non-blank)
-//         if (userDTO.getPassword() != null && !userDTO.getPassword().isBlank()) {
-//             String encoded = passwordEncoder.encode(userDTO.getPassword());
-//             user.setPassword(encoded);
-//         }
+        // password (if provided)
+        if (userDTO.getPassword() != null && !userDTO.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        }
 
-        // Update profileId if provided
+        // profileId
         if (userDTO.getProfileId() != null) {
             user.setProfileId(userDTO.getProfileId());
         }
 
-
-
-        // ... handle any other fields similarly ...
-
-        // Save the updated entity. Because we're in a @Transactional method and `user` is managed,
-        // JPA will flush changes on commit. But calling save() is okay too:
         userRepository.save(user);
-        // Since the method returns void, we do not return anything here.
     }
-
 
     @Override
     @Transactional
     public User deleteUser(Long userId) {
-        // Fetch the user or throw if not found
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException("User not found with id: " + userId));
-        
-        // If there are related entities or constraints, handle them here if needed,
-        // e.g., detach relations or check for orphan prevention.
-        
+                .orElseThrow(() -> new CustomException("USER_NOT_FOUND"));
         userRepository.delete(user);
-        
-        // After deletion, the `user` object is detached but still holds the data.
-        // Return it if you need to show the deleted data; otherwise, consider returning void or a DTO.
         return user;
     }
 
     @Override
     public User getUserByUsername(String username) throws CustomException {
-        Optional<User> user = userRepository.findByUsername(username);
-        if(user.isPresent()){
-            return user.get();
-        } else {
-            throw new CustomException("USER_NOT_FOUND");
-        }
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new CustomException("USER_NOT_FOUND"));
     }
 
     @Override
     public User getUserByEmail(String email) throws CustomException {
-        Optional<User> user = userRepository.findByEmail(email);
-        if(user.isPresent()){
-            return user.get();
-        } else {
-            throw new CustomException("USER_NOT_FOUND");
-        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("USER_NOT_FOUND"));
     }
-    
 }
