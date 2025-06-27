@@ -64,11 +64,6 @@ public class ProfileDTO {
 
     // ----------- Mapping Methods -----------
 
-    /**
-     * Convert this DTO into a Profile entity.
-     * Service layer should encode/hash the password (e.g., passwordEncoder.encode(...))
-     * before or after calling this method.
-     */
     public Profile toEntity() {
         Profile entity = new Profile();
         // Set primary key (userId) if provided. In create flow, controller/service sets this from path or after user creation.

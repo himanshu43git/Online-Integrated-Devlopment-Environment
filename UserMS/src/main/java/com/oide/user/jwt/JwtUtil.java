@@ -11,7 +11,7 @@ import java.util.Map;
 public class JwtUtil {
 
     private static final long JWT_TOKEN_VALIDITY = 5 * 60 * 60L * 1000;
-    private static final String SECRET_KEY = "…your long secret here…";
+    private static final String SECRET_KEY = "9f2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2";
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = Map.of(
