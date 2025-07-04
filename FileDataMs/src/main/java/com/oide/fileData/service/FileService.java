@@ -27,4 +27,11 @@ public interface FileService {
      */
     void deleteFile(String fileId);
 
+    /**
+     * Updates a file by its ID.
+     *
+     * @param fileId The ID of the file to update.
+     */
+    void updateFile(FileDTO fileDTO);
+
 }

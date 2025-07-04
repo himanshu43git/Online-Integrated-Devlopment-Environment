@@ -2,6 +2,8 @@ package com.oide.profile.entity;
 
 import com.oide.profile.dto.ProfileDTO;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -60,6 +62,14 @@ public class Profile {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @ElementCollection
+    @CollectionTable(
+            name = "profile_file_ids",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Column(name = "file_id", length = 40)
+    private List<String> fileIds = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
@@ -89,6 +99,7 @@ public class Profile {
         dto.setAvatarUrl(this.avatarUrl);
         dto.setLocation(this.location);
         dto.setPersonalUrl(this.personalUrl);
+        dto.setFileIds(this.fileIds);
         return dto;
     }
 }

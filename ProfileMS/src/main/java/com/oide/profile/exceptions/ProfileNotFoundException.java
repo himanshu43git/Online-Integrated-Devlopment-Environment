@@ -5,6 +5,6 @@ package com.oide.profile.exceptions;
  */
 public class ProfileNotFoundException extends RuntimeException {
     public ProfileNotFoundException(Long userId) {
-        super("Profile not found for userId: " + userId);
+        super("PROFILE_NOT_FOUND_FOR_USERID : " + userId);
     }
 }

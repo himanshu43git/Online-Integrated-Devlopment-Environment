@@ -47,7 +47,8 @@ public class FileAPI {
      * Returns 200 OK + FileDTO (with fileContent re-populated as Base64).
      */
     @GetMapping("/{id}")
-    public ResponseEntity<FileDTO> getFile(@PathVariable("id") String id) {
+    public ResponseEntity<FileDTO> getFile(@PathVariable String id) {
+        System.out.println("Here in getFile with id: " + id);
         try {
             FileDTO dto = fileService.getFileById(id);
             return ResponseEntity.ok(dto);
@@ -66,7 +67,7 @@ public class FileAPI {
      * Returns 204 No Content on success.
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFile(@PathVariable("id") String id) {
+    public ResponseEntity<Void> deleteFile(@PathVariable String id) {
         try {
             fileService.deleteFile(id);
             return ResponseEntity.noContent().build();

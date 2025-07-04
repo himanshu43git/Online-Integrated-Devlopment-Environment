@@ -54,4 +54,8 @@ public interface ProfileService {
      * @throws IllegalArgumentException if userId is null or not positive.
      */
     boolean existsByUserId(Long userId);
+
+     Long addFileIdToProfile(Long userId, String fileId);
+
+
 }

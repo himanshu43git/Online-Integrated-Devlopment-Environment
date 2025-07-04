@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -47,7 +48,8 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public FileDTO uploadFile(FileDTO fileDTO) {
-        // 1) generate a unique storage filename
+        // 1) generate a unique fileId and a unique storage filename
+        String fileId = UUID.randomUUID().toString();
         String original = fileDTO.getOriginalFilename();
         long ts = Instant.now().toEpochMilli();
         String storageFilename = fileDTO.getUserId() + "_" + ts + "_" + original;
@@ -55,26 +57,30 @@ public class FileServiceImpl implements FileService {
         // 2) decode Base64 and write the bytes to disk
         byte[] data = Base64.getDecoder().decode(fileDTO.getFileContent());
         Path target = Paths.get(rootDir).resolve(storageFilename).normalize();
-
         try {
             Files.write(target, data);
         } catch (IOException e) {
             throw new RuntimeException("Failed to write file to disk: " + target, e);
         }
 
-        // 3) build and save the Mongo entity
-        FileEntity entity = new FileEntity(
-            fileDTO.getUserId(),
-            original,
-            storageFilename,
-            Instant.ofEpochMilli(ts)
-        );
-        // leave entity.fileContent null to keep DB slim
-        FileEntity saved = fileRepository.save(entity);
+        // 3) if a file with this storageFilename already exists, just return it
+        FileEntity existing = fileRepository.findByStorageFilename(storageFilename);
+        if (existing != null) {
+            return FileDTO.fromEntity(existing);
+        }
 
-        // 4) return a DTO without fileContent
-        FileDTO result = FileDTO.fromEntity(saved);
-        return result;
+        // 4) build the Mongo entity — include the generated fileId
+        FileEntity entity = new FileEntity(
+                fileDTO.getUserId(),
+                original,
+                storageFilename,
+                Instant.ofEpochMilli(ts));
+        entity.setId(fileId);
+        // leave entity.fileContent null to keep DB slim
+
+        // 5) save and return DTO
+        FileEntity saved = fileRepository.save(entity);
+        return FileDTO.fromEntity(saved);
     }
 
     @Override
@@ -120,4 +126,47 @@ public class FileServiceImpl implements FileService {
         // 2) delete metadata record
         fileRepository.deleteById(fileId);
     }
+
+    @Override
+    public void updateFile(FileDTO fileDTO) {
+        // 1) Validate input
+        if (fileDTO.getFileId() == null || fileDTO.getFileId().isBlank()) {
+            throw new IllegalArgumentException("fileId is required for update");
+        }
+
+        // 2) Load existing entity
+        Optional<FileEntity> opt = fileRepository.findById(fileDTO.getFileId());
+        if (!opt.isPresent()) {
+            throw new RuntimeException("File not found: " + fileDTO.getFileId());
+        }
+        FileEntity entity = opt.get();
+
+        // 3) Overwrite file on disk if new content was provided
+        if (fileDTO.getFileContent() != null && !fileDTO.getFileContent().isBlank()) {
+            byte[] data = Base64.getDecoder().decode(fileDTO.getFileContent());
+            Path target = Paths.get(rootDir)
+                    .resolve(entity.getStorageFilename())
+                    .normalize();
+            try {
+                Files.write(target, data);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to write updated file to disk: " + target, e);
+            }
+        }
+
+        // 4) Update metadata if original filename changed
+        String newOriginal = fileDTO.getOriginalFilename();
+        if (newOriginal != null
+                && !newOriginal.isBlank()
+                && !newOriginal.equals(entity.getOriginalFilename())) {
+            entity.setOriginalFilename(newOriginal);
+        }
+
+        // 5) Refresh uploadTime
+        entity.setUploadTime(Instant.now());
+
+        // 6) Persist the updated entity
+        fileRepository.save(entity);
+    }
+
 }

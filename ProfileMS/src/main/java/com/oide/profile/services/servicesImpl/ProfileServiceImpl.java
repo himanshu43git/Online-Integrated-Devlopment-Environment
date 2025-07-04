@@ -3,89 +3,70 @@ package com.oide.profile.services.servicesImpl;
 import com.oide.profile.dto.ProfileDTO;
 import com.oide.profile.entity.Profile;
 import com.oide.profile.exceptions.ProfileNotFoundException;
-import com.oide.profile.exceptions.CustomException; // ensure you have/import CustomException
+import com.oide.profile.exceptions.CustomException;
 import com.oide.profile.repositories.ProfileRepository;
 import com.oide.profile.services.ProfileService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.Optional;
-import java.util.UUID;
-
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
 public class ProfileServiceImpl implements ProfileService {
 
     private final ProfileRepository repository;
-    // If you later verify user existence, inject a UserClient or similar.
-    // private final UserClient userClient;
 
-    public ProfileServiceImpl(ProfileRepository repository
-            /*, UserClient userClient */) {
+    public ProfileServiceImpl(ProfileRepository repository) {
         this.repository = repository;
-        // this.userClient = userClient;
     }
 
     /**
-     * Create a new profile for a user.
-     * Expects profileDTO.userId to be non-null and positive.
+     * Create a new profile for a user. Expects profileDTO.userId to be non-null & positive.
      */
     @Override
+    @Transactional
     public Long createProfile(ProfileDTO profileDTO) {
-//        Long userId = profileDTO.getUserId();
-//        // Validate userId presence
-//        if (userId == null || userId <= 0) {
-//            throw new CustomException("userId must be provided and positive");
-//        }
-//        // Check that profile does not already exist
-//        if (repository.existsById(userId)) {
-//            throw new CustomException("Profile already exists for userId: " + userId);
-//        }
-//        // Validate password non-empty
-//        if (!StringUtils.hasText(profileDTO.getPassword())) {
-//            throw new CustomException("Password must not be empty");
-//        }
-
-        Optional<Profile> exsisting = repository.findByUsername(profileDTO.getUsername());
-
-        if(exsisting.isPresent()){
-            throw new CustomException("USER_ALREADY_EXIST");
+        Long userId = profileDTO.getUserId();
+        if (userId == null || userId <= 0) {
+            throw new CustomException("userId must be provided and positive");
         }
-        // Map DTO to entity
+        if (repository.existsById(userId)) {
+            throw new CustomException("Profile already exists for userId: " + userId);
+        }
+        if (!StringUtils.hasText(profileDTO.getPassword())) {
+            throw new CustomException("Password must not be empty");
+        }
+
+        // Map DTO → Entity (fileIds list will be empty by default)
         Profile entity = profileDTO.toEntity();
-        // Set the provided userId as primary key
-        Long id = UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE;
-        entity.setUserId(id);
-        // Store raw password as-is (no encoding here)
+        entity.setUserId(userId);
+        // TODO: encode the password before setting if you introduce a PasswordEncoder
         entity.setPassword(profileDTO.getPassword());
-        // Save entity
-        Profile saved = repository.save(entity);
-        // Return the userId of the saved profile
-        return saved.getUserId();
+
+        repository.save(entity);
+        return userId;
     }
 
     /**
      * Retrieve an existing profile by userId.
      */
     @Override
+    @Transactional(readOnly = true)
     public ProfileDTO getProfileByUserId(Long userId) {
         if (userId == null || userId <= 0) {
             throw new CustomException("userId must be provided and positive");
         }
-        Optional<Profile> profileExist = repository.findById(userId);
-        if (profileExist.isPresent()) {
-            return profileExist.get().toDTO();
-        } else {
-            throw new ProfileNotFoundException(userId);
-        }
+        Profile profile = repository.findById(userId)
+                .orElseThrow(() -> new ProfileNotFoundException(userId));
+        return profile.toDTO();
     }
 
     /**
-     * Update an existing profile.
-     * Fields in profileDTO that are non-null overwrite existing values.
-     * Raw password is stored as-is if provided.
+     * Update fields in an existing profile. Only non-null DTO fields overwrite.
      */
     @Override
+    @Transactional
     public ProfileDTO updateProfile(Long userId, ProfileDTO profileDTO) {
         if (userId == null || userId <= 0) {
             throw new CustomException("userId must be provided and positive");
@@ -93,33 +74,17 @@ public class ProfileServiceImpl implements ProfileService {
         Profile existing = repository.findById(userId)
                 .orElseThrow(() -> new ProfileNotFoundException(userId));
 
-        // Update fields if provided (non-null)
-        if (profileDTO.getName() != null) {
-            existing.setName(profileDTO.getName());
+        // Conditionally overwrite
+        Optional.ofNullable(profileDTO.getName()).ifPresent(existing::setName);
+        Optional.ofNullable(profileDTO.getUsername()).ifPresent(existing::setUsername);
+        Optional.ofNullable(profileDTO.getEmail()).ifPresent(existing::setEmail);
+        if (StringUtils.hasText(profileDTO.getPassword())) {
+            existing.setPassword(profileDTO.getPassword());
         }
-        if (profileDTO.getUsername() != null) {
-            existing.setUsername(profileDTO.getUsername());
-        }
-        if (profileDTO.getEmail() != null) {
-            existing.setEmail(profileDTO.getEmail());
-        }
-        String newPassword = profileDTO.getPassword();
-        if (StringUtils.hasText(newPassword)) {
-            existing.setPassword(newPassword);
-        }
-        if (profileDTO.getBio() != null) {
-            existing.setBio(profileDTO.getBio());
-        }
-        if (profileDTO.getAvatarUrl() != null) {
-            existing.setAvatarUrl(profileDTO.getAvatarUrl());
-        }
-        if (profileDTO.getLocation() != null) {
-            existing.setLocation(profileDTO.getLocation());
-        }
-        if (profileDTO.getPersonalUrl() != null) {
-            existing.setPersonalUrl(profileDTO.getPersonalUrl());
-        }
-        // lastActiveAt, createdAt, updatedAt handled by entity lifecycle callbacks
+        Optional.ofNullable(profileDTO.getBio()).ifPresent(existing::setBio);
+        Optional.ofNullable(profileDTO.getAvatarUrl()).ifPresent(existing::setAvatarUrl);
+        Optional.ofNullable(profileDTO.getLocation()).ifPresent(existing::setLocation);
+        Optional.ofNullable(profileDTO.getPersonalUrl()).ifPresent(existing::setPersonalUrl);
 
         Profile updated = repository.save(existing);
         return updated.toDTO();
@@ -129,6 +94,7 @@ public class ProfileServiceImpl implements ProfileService {
      * Delete a profile by userId.
      */
     @Override
+    @Transactional
     public void deleteProfileByUserId(Long userId) {
         if (userId == null || userId <= 0) {
             throw new CustomException("userId must be provided and positive");
@@ -140,13 +106,40 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     /**
-     * Check whether a profile exists for the given userId.
+     * Check whether a profile exists.
      */
     @Override
+    @Transactional(readOnly = true)
     public boolean existsByUserId(Long userId) {
         if (userId == null || userId <= 0) {
             throw new CustomException("userId must be provided and positive");
         }
         return repository.existsById(userId);
     }
+
+    /**
+     * Add a fileId to the user’s profile (no-ops if already present).
+     */
+    @Override
+    @Transactional
+    public Long addFileIdToProfile(Long userId, String fileId) {
+        if (userId == null || userId <= 0) {
+            throw new CustomException("userId must be provided and positive");
+        }
+        if (!StringUtils.hasText(fileId)) {
+            throw new CustomException("fileId must not be empty");
+        }
+
+        Profile profile = repository.findById(userId)
+                .orElseThrow(() -> new ProfileNotFoundException(userId));
+
+        if (!profile.getFileIds().contains(fileId)) {
+            profile.getFileIds().add(fileId);
+            repository.save(profile);
+        }
+
+        return userId;
+    }
+
+
 }
