@@ -1,6 +1,10 @@
 package com.oide.profile.services;
 
 import com.oide.profile.dto.ProfileDTO;
+import com.oide.profile.entity.UserFile;
+import org.w3c.dom.stylesheets.LinkStyle;
+
+import java.util.List;
 
 /**
  * Service interface for Profile operations.
@@ -57,5 +61,7 @@ public interface ProfileService {
 
      Long addFileIdToProfile(Long userId, String fileId);
 
+
+     List<UserFile> getAllFileId(Long userId);
 
 }

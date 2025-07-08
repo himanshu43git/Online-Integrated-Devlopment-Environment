@@ -2,27 +2,37 @@ package com.oide.profile.services.servicesImpl;
 
 import com.oide.profile.dto.ProfileDTO;
 import com.oide.profile.entity.Profile;
+import com.oide.profile.entity.UserFile;
 import com.oide.profile.exceptions.ProfileNotFoundException;
 import com.oide.profile.exceptions.CustomException;
+import com.oide.profile.exceptions.UserIdRelatesExceptions;
+import com.oide.profile.repositories.FileRepository;
 import com.oide.profile.repositories.ProfileRepository;
 import com.oide.profile.services.ProfileService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ProfileServiceImpl implements ProfileService {
 
     private final ProfileRepository repository;
 
-    public ProfileServiceImpl(ProfileRepository repository) {
+    private final FileRepository fileRepo;
+
+    public ProfileServiceImpl(ProfileRepository repository, FileRepository fileRepo) {
         this.repository = repository;
+        this.fileRepo = fileRepo;
     }
 
     /**
-     * Create a new profile for a user. Expects profileDTO.userId to be non-null & positive.
+     * Create a new profile for a user. Expects profileDTO.userId to be non-null &
+     * positive.
      */
     @Override
     @Transactional
@@ -123,23 +133,59 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     @Transactional
     public Long addFileIdToProfile(Long userId, String fileId) {
-        if (userId == null || userId <= 0) {
-            throw new CustomException("userId must be provided and positive");
-        }
-        if (!StringUtils.hasText(fileId)) {
-            throw new CustomException("fileId must not be empty");
-        }
-
         Profile profile = repository.findById(userId)
                 .orElseThrow(() -> new ProfileNotFoundException(userId));
 
-        if (!profile.getFileIds().contains(fileId)) {
-            profile.getFileIds().add(fileId);
+        boolean exists = profile.getFileIds().stream()
+                .anyMatch(f -> f.getFileId().equals(fileId));
+        if (!exists) {
+            UserFile uf = new UserFile();
+            uf.setFileId(fileId);
+            uf.setProfile(profile);
+            profile.getFileIds().add(uf);
             repository.save(profile);
         }
 
         return userId;
     }
 
+    /**
+     * @param userId
+     * @return
+     */
+
+    @Override
+    public List<UserFile> getAllFileId(Long userId) {
+        if (userId == null) {
+            throw new UserIdRelatesExceptions("USER ID CANNOT BE NULL");
+        }
+        if (userId <= 0) {
+            throw new UserIdRelatesExceptions("USER ID MUST BE > 0");
+        }
+
+        List<String> ids = fileRepo.findFileIdsByUserId(userId)
+                .orElseThrow(() ->
+                        new CustomException("NO PROFILE FOUND FOR USERID: " + userId))
+                .stream()
+                .map(String::toUpperCase)
+                .collect(Collectors.toList());
+
+        if (ids.isEmpty()) {
+            throw new CustomException("NO FILES ARE RELATED FOR USERID: " + userId);
+        }
+
+        // 2) get a Profile proxy (no extra query yet)
+        Profile profileRef = repository.getReferenceById(userId);
+
+        // 3) map into UserFile
+        return ids.stream()
+                .map(fileIdStr -> {
+                    UserFile uf = new UserFile();
+                    uf.setFileId(fileIdStr);
+                    uf.setProfile(profileRef);
+                    return uf;
+                })
+                .collect(Collectors.toList());
+    }
 
 }
